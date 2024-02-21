@@ -1,0 +1,382 @@
+---
+title: "ENM RSD"
+author: "Laura"
+date: "2023-04-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries
+```{r}
+ library(rJava)
+options(java.parameters = "-Xmx8g")
+library(SDMtune)
+library(raster)
+library(dismo)
+library(sp)
+library(ENMTools)
+library(ntbox)
+library(spam)
+library(dotCall64)
+library(grid)
+library(fields)
+library(viridis)
+library(viridisLite)
+library(readxl)
+library(spThin)
+library(leaflet)
+library(plotROC)
+```
+
+Remove spatial correlation of plant disease presence points 
+```{r}
+RSD_ = read_xlsx("E:/Laura/TESIS/DATOS/RSD.xlsx")
+
+clean = thin(
+  loc.data = RSD_,
+  lat.col = "y",
+  long.col = "x",
+  spec.col = "Especie",
+  thin.par = 5,
+  reps = 1,
+  write.files = T,
+  out.dir = './',
+  out.base = "",
+  locs.thinned.list.return = T,
+  verbose = TRUE,
+  write.log.file = F
+)
+
+RSD = clean[[1]]
+```
+
+Plot presence points
+```{r}
+leaflet(RSD)%>% 
+  addTiles() %>%
+  addCircleMarkers(lng = ~Longitude, lat = ~Latitude)
+```
+
+ntbox allows to select which environmental layers are related with the presence points
+```{r}
+run_ntbox()
+```
+
+load and plot environmental layers 
+```{r}
+bc = list.files("E:/Laura/TESIS/RSD/CAPAS/ACTUAL", pattern = ".tif", full.names = T, all.files = T)
+env = stack(bc)
+env = check.env(env, verbose = TRUE)
+```
+
+```{r}
+env1 = check.env(env, verbose = T)
+names(env1)
+```
+
+change environmental layers names
+```{r}
+names(env1) = c("Annual Mean Temperature", "Annual Precipitation",
+               "Precipitation of Driest Month", 
+               "Precipitation Seasonality", "Precipitation of Driest Quarter",
+               "Mean Diurnal Range",  "Isothermality", "Temperature Seasonality",
+               "Max Temperature of Warmest Month", "Min Temperature of Coldest Month")
+plot(env1)
+```
+
+
+```{r}
+raster.cor.matrix(env, method = "pearson")
+raster.cor.plot(env, method = "pearson")
+```
+
+Create the species object
+```{r}
+set.seed(2023)
+
+thin = read.csv("E:/Laura/TESIS/RSD/_thin1.csv")
+
+spRSD <- prepareSWD(
+  species = "RSD", 
+  p = thin, 
+  a = dismo::randomPoints(env, 87), 
+  env = env
+)
+```
+
+Model train
+```{r}
+model <- train(method = "Maxent",
+               data = spRSD,
+               verbose = T)
+```
+
+```{r}
+set.seed(2023)
+datasets <-
+  trainValTest(
+    spRSD, 
+    test = 0.5,
+    only_presence = T,
+  )
+
+train <- datasets[[1]]
+test <- datasets[[2]]
+```
+
+Model optimization
+```{r}
+h = list(
+    reg = seq(0.01, 2, 0.01),
+    fc = c("l","q","p","t","lq","h","lp","lt","lh","qp","qt","qh","pt","ph","th","lqp","lqt","lqh","lpt","lph","lth","qpt","qph","qth","pth","lqpt","lqph","lqth","lpth","qpth","lqpth"
+    ),
+    iter = seq(100, 500, 100)
+  )
+```
+
+```{r}
+pars = optimizeModel(model, 
+              hypers = h, 
+              metric = "aicc",
+              test = test, 
+              pop = 5, 
+              gen = 5,
+              env = env)
+```
+
+Select best model
+```{r}
+pars@results
+#pars@models
+pars@models[[1]]
+```
+
+```{r}
+modelRSD <- train(method = "Maxent",
+               data = train,
+               verbose = T,
+               fc = "qt", 
+               reg = 0.56,
+               iter = 400)
+modelRSD
+```
+
+
+Best model metrics
+```{r}
+auc(modelRSD)
+auc(modelRSD, test = test)
+tss(modelRSD)
+tss(modelRSD, test = test)
+aicc(modelRSD, env)
+```
+
+Importance feature 
+```{r}
+VAR_I = varImp(modelRSD)
+VAR_I
+plotVarImp(VAR_I) 
+```
+
+Load environmental layers for projected areas
+```{r}
+env2 = list.files("E:/Laura/TESIS/RSD/CAPAS/ACTUAL1", pattern = ".tif", full.names = T, all.files = T)
+env2 = stack(env2) 
+env2 = check.env(env2, verbose = T)
+
+bc126 = list.files("E:/Laura/TESIS/RSD/CAPAS/126", pattern = ".tif", full.names = T, all.files = T)
+env126 = stack(bc126) 
+env126 = check.env(env126, verbose = T)
+
+bc245 = list.files("E:/Laura/TESIS/RSD/CAPAS/245", pattern = ".tif", full.names = T, all.files = T)
+env245 = stack(bc245) 
+env245 = check.env(env245, verbose = T)
+
+bc370 = list.files("E:/Laura/TESIS/RSD/CAPAS/370", pattern = ".tif", full.names = T, all.files = T)
+env370 = stack(bc370) 
+env370 = check.env(env370, verbose = T)
+
+bc585 = list.files("E:/Laura/TESIS/RSD/CAPAS/585", pattern = ".tif", full.names = T, all.files = T)
+env585 = stack(bc585) 
+env585 = check.env(env585, verbose = T)
+
+bc1261 = list.files("E:/Laura/TESIS/RSD/CAPAS/1261", pattern = ".tif", full.names = T, all.files = T)
+env1261 = stack(bc1261) 
+env1261 = check.env(env1261, verbose = T)
+
+bc2451 = list.files("E:/Laura/TESIS/RSD/CAPAS/2451", pattern = ".tif", full.names = T, all.files = T)
+env2451 = stack(bc2451) 
+env2451 = check.env(env2451, verbose = T)
+
+bc3701 = list.files("E:/Laura/TESIS/RSD/CAPAS/3701", pattern = ".tif", full.names = T, all.files = T)
+env3701 = stack(bc3701) 
+env3701 = check.env(env3701, verbose = T)
+
+bc5851 = list.files("E:/Laura/TESIS/RSD/CAPAS/5851", pattern = ".tif", full.names = T, all.files = T)
+env5851 = stack(bc5851) 
+env5851 = check.env(env5851, verbose = T)
+```
+
+Model prediction 
+```{r}
+ACTUAL = predict(
+  modelRSD,
+  env,
+  type = 'logistic',
+  file = "actual",
+  format = "GTiff",
+  overwrite = T
+)
+ACTUAL1 = predict(
+  modelRSD,
+  env2,
+  type = 'logistic',
+  file = "Actual1",
+  format = "GTiff",
+  overwrite = T
+)
+SSP126 = predict(
+  modelRSD,
+  env126,
+  type = 'logistic',
+  file = "ssp126",
+  format = "GTiff",
+  overwrite = T
+)
+SSP245 = predict(
+  modelRSD,
+  env245,
+  type = 'logistic',
+  file = "ssp245",
+  format = "GTiff",
+  overwrite = T
+)
+SSP370 = predict(
+  modelRSD,
+  env370,
+  type = 'logistic',
+  file = "ssp370",
+  format = "GTiff",
+  overwrite = T
+)
+SSP585 = predict(
+  modelRSD,
+  env585,
+  type = 'logistic',
+  file = "ssp585",
+  format = "GTiff",
+  overwrite = T
+)
+SSP1261 = predict(
+  modelRSD,
+  env1261,
+  type = 'logistic',
+  file = "ssp1261",
+  format = "GTiff",
+  overwrite = T
+)
+SSP2451 = predict(
+  modelRSD,
+  env2451,
+  type = 'logistic',
+  file = "ssp2451",
+  format = "GTiff",
+  overwrite = T
+)
+SSP3701 = predict(
+  modelRSD,
+  env3701,
+  type = 'logistic',
+  file = "ssp3701",
+  format = "GTiff",
+  overwrite = T
+)
+SSP5851 = predict(
+  modelRSD,
+  env5851,
+  type = 'logistic',
+  file = "ssp5851",
+  format = "GTiff",
+  overwrite = T
+)
+```
+
+Plot prediction
+```{r}
+plotPred(ACTUAL, lt = "Actual", hr = T)
+plotPred(ACTUAL1, lt = "Actual", hr = T)
+plotPred(SSP126, lt = "SSP126", hr = T)
+plotPred(SSP245, lt = "SSP245", hr = T)
+plotPred(SSP370, lt = "SSP370", hr = T)
+plotPred(SSP585, lt = "SSP585", hr = T)
+plotPred(SSP1261, lt = "SSP126", hr = T)
+plotPred(SSP2451, lt = "SSP245", hr = T)
+plotPred(SSP3701, lt = "SSP370", hr = T)
+plotPred(SSP5851, lt = "SSP585", hr = T)
+```
+
+Environmental response 
+```{r}
+plotResponse(
+  modelRSD,
+  "A1",
+  type = NULL,
+  only_presence = TRUE,
+  marginal = F,
+  rug = F,
+  color = "red"
+)
+plotResponse(
+  modelRSD,
+  "A2",
+  type = NULL,
+  only_presence = TRUE,
+  marginal = F,
+  rug = F,
+  color = "red"
+)
+plotResponse(
+  modelRSD,
+  "A3",
+  type = NULL,
+  only_presence = TRUE,
+  marginal = F,
+  rug = F,
+  color = "red"
+)
+plotResponse(
+  modelRSD,
+  "A5",
+  type = NULL,
+  only_presence = TRUE,
+  marginal = F,
+  rug = F,
+  color = "red"
+)
+```
+
+ROC 
+```{r}
+plotROC(modelRSD, test = test)
+```
+
+```{r}
+jk <- doJk(
+  modelRSD,
+  metric = "auc",
+  test = test)
+
+plotJk(
+  jk,
+  type = "train",
+  ref = auc(modelRSD))
+
+plotJk(
+  jk,
+  type = "test",
+  ref = auc(modelRSD, test = test))
+```
+
