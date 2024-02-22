@@ -1,0 +1,88 @@
+.container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.row {
+    width: 70%;
+}
+
+
+.page_404 {
+    padding: 40px 0;
+    background: #fff;
+    font-family: "Arvo", serif;
+    width: 70%;
+    height: 50%;
+}
+  
+.page_404 img {
+    width: 100%;
+}
+  
+.four_zero_four_bg {
+    background-image: url(https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif);
+    height: 400px;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+  
+.four_zero_four_bg h1 {
+    font-size: 80px;
+    font-family: 'Poppins';
+    margin-bottom: 25rem;
+}
+  
+.four_zero_four_bg h3 {
+    font-size: 80px;
+    font-family: 'Poppins';
+}
+  
+.link_404 {
+    color: #fff !important;
+    padding: 10px 20px;
+    background: #39ac31;
+    margin: 20px 0;
+    display: inline-block;
+    border-radius: 0.33rem;
+}
+
+.contant_box_404 {
+    margin-top: -50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.contant_box_404 h3 {
+    font-size: 45px;
+    font-family: 'Poppins';
+    text-align: center;
+}
+
+.contant_box_404 p {
+    text-align: center;
+    font-size: 25px;
+    font-family: 'Poppins';
+}
+
+.contant_box_404 a {
+    text-decoration: none;
+    font-family: 'Poppins';
+}
+
+@media (max-width:500px){
+    .row {
+        width: 100%;
+    }
+}

@@ -1,0 +1,81 @@
+<app-navbar></app-navbar>
+
+<div class="container">
+  <section class="right-section">
+    @if(coordinatesPolygon){
+    <div class="save-polygon">
+      <section class="text">
+        <h1>
+          Si quieres guardar el polígono dibujado ingresa el nombre y da click
+          en guardar!
+        </h1>
+      </section>
+      <section class="input">
+        <mat-form-field class="input-opt">
+          <mat-label>Nombre Polígono</mat-label>
+          <input matInput [(ngModel)]="save.namePolygon" />
+        </mat-form-field>
+      </section>
+      <section class="btn">
+        <button (click)="saveP()">Guardar</button>
+      </section>
+    </div>
+    }
+
+    <div class="show-polygons">
+      <section class="text">
+        <h1>Para visualizar un polígono ya dibujado seleccionalo!</h1>
+      </section>
+      <section class="input">
+        <mat-form-field>
+          <mat-label>Polígonos Guardados</mat-label>
+          <mat-select [(ngModel)]="polygonToSee.id">
+            @for (data of polygons; track data) {
+            <mat-option [value]="data.id">{{ data.name_polygon }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </section>
+      <section class="btn">
+        <button (click)="seePolygon()">Visualizar</button>
+      </section>
+    </div>
+
+    <div class="title">
+      <section class="title-section">
+        <h2>Información sobre el lote seleccionado</h2>
+      </section>
+      <section class="text">
+        <p>Área del lote: {{ area }} ha</p>
+      </section>
+    </div>
+  </section>
+  <section class="left-section">
+    <div class="graphs">
+      <mat-tab-group color="primary">
+        <mat-tab label="Temperatura">
+          <br />
+          <canvas #TempChart></canvas>
+        </mat-tab>
+        <mat-tab label="Precipitación">
+          <br />
+          <canvas #PrepChart></canvas>
+        </mat-tab>
+        <mat-tab label="Humedad Relativa">
+          <br />
+          <canvas #HRChart></canvas>
+        </mat-tab>
+        <mat-tab label="Punto de Rocio">
+          <br />
+          <canvas #PRChart></canvas>
+        </mat-tab>
+      </mat-tab-group>
+    </div>
+  </section>
+</div>
+
+@if(loading){
+<div class="loader">
+  <img src="../../assets/Loguito.png" alt="" />
+</div>
+}

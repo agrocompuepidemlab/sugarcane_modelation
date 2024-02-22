@@ -1,0 +1,55 @@
+<app-navbar></app-navbar>
+<div class="container">
+  <section class="right-section">
+    <section class="title">
+      <h1>Selecciona un archivo raster (.tif)</h1>
+    </section>
+    <section class="upload">
+      <ngx-file-drop
+        dropZoneLabel="Drop files here"
+        (onFileDrop)="dropped($event)"
+      >
+        <ng-template
+          ngx-file-drop-content-tmp
+          let-openFileSelector="openFileSelector"
+        >
+          <a role="button" (click)="openFileSelector()">
+            Arrastra y suelta los archivos aquí, ó
+            <strong>busca los archivos</strong>
+          </a>
+        </ng-template>
+      </ngx-file-drop>
+    </section>
+    <section>
+      @if(filesUp.length > 0){
+        <h1>Archivo Cargado</h1>
+      }
+      <ul>
+        @for(data of filesUp; track data){
+          <li> <h3><strong>{{data}}</strong></h3> </li>
+        }
+      </ul>
+    </section>
+    <section class="btn">
+      <button (click)="upload()">Cargar archivo</button>
+    </section>
+  </section>
+  <section class="left-section">
+    <section class="title">
+      <h1>Idoneidad para el desarrollo de la enfermedad</h1>
+    </section>
+    <section class="images">
+      @if(images){
+      <img src="../../assets/Escala.png" style="width: 60%; height: 5%" />
+      } @if(imageUrl){
+      <img [src]="imageUrl" style="width: 40%" />
+      }
+    </section>
+  </section>
+</div>
+
+@if(loading){
+<div class="loader">
+  <img src="../../assets/Loguito.png" alt="" />
+</div>
+}

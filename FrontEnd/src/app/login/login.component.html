@@ -1,0 +1,94 @@
+<div class="cont">
+  <div
+    class="container"
+    id="container"
+    [ngClass]="{ rojo: flag, 'right-panel-active': !flag }"
+  >
+    <div class="form-container sign-up-container">
+      <form class="custom-form" method="post">
+        <h1>Crea una cuenta</h1>
+        <input
+          type="text"
+          [(ngModel)]="user.loginUser"
+          name="nameS"
+          placeholder="Nombre de usuario"
+          required="required"
+        />
+        <input
+          type="text"
+          [(ngModel)]="user.username"
+          name="nameS"
+          placeholder="Nombre y Apellido"
+          required="required"
+        />
+        <input
+          type="email"
+          [(ngModel)]="user.email"
+          name="emailS"
+          placeholder="Email"
+          required="required"
+        />
+        <input
+          type="password"
+          [(ngModel)]="user.password"
+          name="passwordS"
+          placeholder="Contraseña"
+          required="required"
+        />
+        <input
+          type="password"
+          [(ngModel)]="user.cpassword"
+          name="passwordS"
+          placeholder="Confirmar Contraseña"
+          required="required"
+        />
+        <button id="registerL" (click)="register()">Registrarse</button>
+      </form>
+    </div>
+    <div class="form-container sign-in-container">
+      <form action="#">
+        <h1>Inicia Sesión</h1>
+        <input
+          type="email"
+          [(ngModel)]="loginUser.loginUser"
+          name="emailL"
+          placeholder="Email"
+          required="required"
+        />
+        <input
+          type="password"
+          [(ngModel)]="loginUser.password"
+          name="passwordL"
+          placeholder="Contraseña"
+          required="required"
+        />
+        <a href="#">¿Olvidaste tu contraseña?</a>
+        <button id="loginL" (click)="login()">Ingresar</button>
+      </form>
+    </div>
+    <div class="overlay-container">
+      <div class="overlay">
+        <div class="overlay-panel overlay-left">
+          <h1>Bienvenido de nuevo!</h1>
+          <p>Si ya tienes cuenta, inicia sesión</p>
+          <button class="ghost" id="signIn" (click)="sigInB()">
+            Iniciar Sesión
+          </button>
+        </div>
+        <div class="overlay-panel overlay-right">
+          <h1>Hola, bienvenido a Modelamiento de Caña de Azucar</h1>
+          <p>Si deseas registrarte con tus datos has click aquí</p>
+          <button class="ghost" id="signUp" (click)="sigUpB()">
+            Registrarse
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if(loading){
+<div class="loader">
+  <img src="../../assets/Loguito.png" alt="" />
+</div>
+}
