@@ -5,5 +5,5 @@ import { Injectable } from '@angular/core';
 })
 
 export class IP {  
-  ipBackend: string = 'http://127.0.0.1:8080/api/v2/';
+  ipBackend: string = 'http://127.0.0.1:5000/api/v2/';
 }
