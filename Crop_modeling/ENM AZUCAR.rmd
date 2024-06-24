@@ -1,0 +1,273 @@
+---
+title: "ENM AZUCAR"
+output: html_document
+date: "2023-03-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages(c("ENMTools","leaflet",'spThin','nicheROVER','devtools','microbenchmark'))
+#library(ENMTools)
+#install.extras() #Extras de ENMTools
+#devtools::install_github("luismurao/ntbox")
+#install.packages("Rcpp", repos="https://rcppcore.github.io/drat")
+library(rJava)
+options(java.parameters="-Xmx8g")
+```
+
+```{r}
+library(readr)
+df <- read_csv("./PA.csv")
+df
+```
+
+```{r}
+spec(df)
+```
+
+```{r}
+df <- unique(df)
+```
+
+#Reduccion espacial
+
+```{r}
+library(spThin)
+
+clean = thin(
+  loc.data = df,
+  lat.col = "coord_y",
+  long.col = "coord_x",
+  spec.col = "ESPECIE",
+  thin.par = 10,
+  reps = 1,
+  write.files = T,
+  out.dir = './',
+  out.base = "",
+  locs.thinned.list.return = T,
+  verbose = TRUE,
+  write.log.file = F
+)
+
+db = clean[[1]]
+```
+
+# Presencias sin reducción
+```{r}
+library(leaflet)
+leaflet(df)%>% 
+  addTiles() %>%
+  addCircleMarkers(lng = ~coord_x, lat = ~coord_y)
+```
+# Presencias con reducción
+
+```{r}
+leaflet(db)%>% 
+  addTiles() %>%
+  addCircleMarkers(lng = ~Longitude, lat = ~Latitude)
+```
+
+# Selección de variables ambientales
+
+```{r}
+#library(ntbox)
+#run_ntbox()
+```
+#ENM
+## Distribución geografica
+
+```{r}
+library(raster)
+rastlist <- list.files("G:/BC", pattern = ".tif", full.names = T, all.files = T)
+env <- stack(rastlist)
+plot(env)
+```
+
+## Verificación de las variables
+```{r}
+library(ENMTools)
+env <- check.env(env,verbose = T)
+```
+
+```{r}
+# Delimitar las variables ambientales según el área de calibración
+buffer = background.buffer(
+  points = db,
+  buffer.width = 10000,
+  buffer.type = "circles",
+  mask = env,
+  return.type = "raster"
+)
+```
+
+```{r}
+# Obtener los puntos de fondo en el área de calibración
+backpoints = background.buffer(
+  points = db,
+  buffer.width = 10000,
+  buffer.type = "circles",
+  mask = env,
+  return.type = "points",
+  n = 10000
+)
+```
+
+```{r}
+sp = enmtools.species(
+  range = buffer,
+  presence.points = db,
+  background.points = backpoints,
+  species.name = 'S_catenifer',
+)
+
+sp = check.species(sp)
+```
+
+```{r}
+interactive.plot.enmtools.species(sp)
+```
+
+```{r}
+library(rJava)
+sc.mx = enmtools.maxent(
+  species = sp,
+  env = env,
+  test.prop = 0.15,
+  bg.source = "points",
+  verbose = T
+)
+```
+```{r}
+plot(sc.mx)
+```
+
+
+## Métricas de evaluación
+```{r}
+sc.mx$training.evaluation
+sc.mx$test.evaluation
+```
+
+## Importancia de las variables, según una métrica y número de simualciones
+```{r}
+vip::list_metrics()
+vimp = enmtools.vip(
+  model = sc.mx,
+  metric = "auc",
+  nsim = 20,
+  method = "permute",
+  verbose = T,
+)
+
+vimp
+```
+
+```{r}
+plot(sc.mx$test.evaluation, 'ROC')
+```
+
+```{r}
+plot(sc.mx$test.evaluation, 'kappa')
+```
+```{r}
+boxplot(sc.mx$test.evaluation)
+```
+
+```{r}
+density(sc.mx$test.evaluation)
+```
+
+```{r}
+sc.mx$response.plots
+```
+
+#Libre
+
+```{r}
+zl<-predict(sc.mx$model,env)
+library(raster)
+writeRaster(zl, "C:\\Users\\bioco\\OneDrive\\Documents\\azucarlibre.tif", format = "GTiff",type=Float32, overwrite=T)
+```
+
+```{r}
+plot(predict(sc.mx$model, env))
+```
+
+#en zona
+
+```{r}
+envs_crop <- crop(env, extent(zona_interes))
+library(rJava)
+sc.mxa = enmtools.maxent(
+  species = sp,
+  env = envs_crop,
+  test.prop = 0.15,
+  bg.source = "points",
+  verbose = T
+)
+```
+```{r}
+ZA<-(predict(sc.mxa$model, envs_crop))
+writeRaster(ZA, "C:\\Users\\bioco\\OneDrive\\Documents\\azicarzon.tif", format = "GTiff", type=Float32, overwrite=T)
+```
+
+
+```{r}
+zona_interes<- raster("C:\\Users\\bioco\\OneDrive\\Documents\\azucar.tif")
+```
+
+```{r}
+library(raster)
+writeRaster(prediccion, "C:\\Users\\bioco\\OneDrive\\Documents\\azucar.tif", format = "GTiff")
+```
+
+
+```{r}
+zona_interes<- raster("C:\\Users\\bioco\\OneDrive\\Documents\\panelera.tif")
+prediccion <- predict(sc.mx$model, env, zona_interes, type="response")
+prediccion
+plot(predict(sc.mx$model, env, zona_interes))
+```
+
+# Aptitud espacio ambiental
+```{r}
+visualize.enm(model = sc.mx,
+              env = env,
+              layers = c('A8', 'A14'),
+              plot.test.data = F,
+              plot.points = TRUE)
+```
+
+```{r}
+marginal.plots(
+  model = sc.mx,
+  env = env,
+  layer = 'A14'
+)
+```
+
+
+# 2. Nicho ambiental de la especie
+
+```{r}
+library(nicheROVER)
+library(readr)
+niche <- read_csv("./_niche_data.csv")
+niche$sp='SO'
+niche=as.data.frame(niche[3:14])
+niche
+```
+
+```{r}
+niche.par <- tapply(1:nrow(niche), #No. de filas del data frame
+                    niche$sp, #Columna que contiene a la especie
+                  function(ii) niw.post(nsamples = 10, X = niche[ii,1:11])) # Muestras aleatorios (5) de la distribución posterior con Normal-Inverse-Wishart (NIW) anterior. Mayor número de muestras, mejor
+
+
+#formateo de los atos obtenidos para usar en la función
+niche.data <- tapply(1:nrow(niche), niche$sp, function(ii) X = niche[ii,1:4])
+```
+

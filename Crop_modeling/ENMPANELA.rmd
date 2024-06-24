@@ -1,0 +1,262 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(rJava)
+library(dplyr)
+library(readr)
+library(spThin)
+library(writexl)
+library(raster)
+options(java.parameters="-Xmx8g")
+```
+
+```{r}
+dfP <- read_csv("./PP.csv")
+dfP <- dfP[order(dfP$coord_x),]
+dfP
+```
+
+```{r}
+dfP_test <- dfP[630001:nrow(dfP)[1],]
+dfP_test
+```
+
+
+```{r}
+data_final = data.frame()
+
+first <- 1
+second <- 30000
+
+for(i in 1:22){
+  data <- dfP[first:second,]
+  
+  clean1 = thin(
+    loc.data = data,
+    lat.col = "coord_y",
+    long.col = "coord_x",
+    spec.col = "ESPECIE",
+    thin.par = 10,
+    reps = 1,
+    write.files = T,
+    out.dir = './',
+    out.base = "",
+    locs.thinned.list.return = T,
+    verbose = TRUE,
+    write.log.file = F
+  )
+  
+  db1 = clean1[[1]]
+  
+  data_final <- rbind(data_final, db1)
+  
+  
+  first <- first + 30000
+  second <- second + 30000
+  
+  if(second == 660000){
+    second = nrow(dfP)
+  }
+}
+
+data_final
+```
+
+
+```{r}
+
+data_final
+write_xlsx(data_final, path = 'C:\\Users\\bioco\\OneDrive\\Documents\\data_PP.xlsx')
+```
+
+#Presencias sin reduccion 
+
+```{r}
+library(leaflet)
+leaflet(dfP_test)%>% 
+  addTiles() %>%
+  addCircleMarkers(lng = ~coord_x, lat = ~coord_y)
+
+```
+
+
+# Presencias con reduccion 
+```{r}
+leaflet(data_final)%>% 
+  addTiles() %>%
+  addCircleMarkers(lng = ~Longitude, lat = ~Latitude)
+```
+
+#Seleccion variables ambientales 
+
+```{r}
+#library(ntbox)
+#run_ntbox()
+```
+
+#ENM
+## Distribución geografica
+
+```{r}
+library(raster)
+rastlist <- list.files("G:/BC2", pattern = ".tif", full.names = T, all.files = T)
+env <- stack(rastlist)
+plot(env)
+```
+
+## Verificación de las variables
+```{r}
+library(ENMTools)
+env <- check.env(env,verbose = T)
+```
+
+```{r}
+# Delimitar las variables ambientales según el área de calibración
+buffer = background.buffer(
+  points = data_final,
+  buffer.width = 10000,
+  buffer.type = "circles",
+  mask = env,
+  return.type = "raster"
+)
+```
+
+```{r}
+# Obtener los puntos de fondo en el área de calibración
+backpoints = background.buffer(
+  points = data_final,
+  buffer.width = 10000,
+  buffer.type = "circles",
+  mask = env,
+  return.type = "points",
+  n = 10000
+)
+```
+
+```{r}
+sp = enmtools.species(
+  range = buffer,
+  presence.points = data_final,
+  background.points = backpoints,
+  species.name = 'S_catenifer',
+)
+
+sp = check.species(sp)
+```
+
+```{r}
+interactive.plot.enmtools.species(sp)
+```
+
+```{r}
+library(rJava)
+sc.mx = enmtools.maxent(
+  species = sp,
+  env = env,
+  test.prop = 0.15,
+  bg.source = "points",
+  verbose = T
+)
+```
+```{r}
+plot(sc.mx)
+```
+
+## Métricas de evaluación
+```{r}
+sc.mx$training.evaluation
+sc.mx$test.evaluation
+```
+
+## Importancia de las variables, según una métrica y número de simualciones
+```{r}
+vip::list_metrics()
+vimp = enmtools.vip(
+  model = sc.mx,
+  metric = "auc",
+  nsim = 20,
+  method = "permute",
+  verbose = T,
+)
+
+vimp
+```
+```{r}
+ggplot(data=vimp$permute, aes(x=Importance, y=reorder(Variable, Importance))) +
+  geom_bar(stat="identity", fill='lightblue3')+
+  theme_classic()+
+  theme(text = element_text(size = 18,color = 'black'))+
+  xlab("Permutation importance") + ylab("Variable")
+```
+
+```{r}
+plot(sc.mx$test.evaluation, 'ROC')
+```
+
+```{r}
+plot(sc.mx$test.evaluation, 'kappa')
+```
+
+```{r}
+boxplot(sc.mx$test.evaluation)
+```
+
+```{r}
+density(sc.mx$test.evaluation)
+```
+
+```{r}
+sc.mx$response.plots
+```
+
+```{r}
+zona_interes<- raster("C:\\Users\\bioco\\OneDrive\\Documents\\panelera.tif")
+Predicp<-(predict(sc.mx$model, env, zona_interes))
+library(raster)
+writeRaster(zz, "C:\\Users\\bioco\\OneDrive\\Documents\\panelalibre.tif", format = "GTiff", type=Float32, overwrite=T)
+writeRaster(Predicp, "C:\\Users\\bioco\\OneDrive\\Documents\\panelazonif.tif", format = "GTiff", res = c(0.1, 0.1),type=Float32, overwrite=T)
+```
+
+#libre
+
+```{r}
+plot(predict(sc.mx$model, env))
+```
+
+```{r}
+envs_crop <- crop(env, extent(zona_interes))
+library(rJava)
+sc.mxa = enmtools.maxent(
+  species = sp,
+  env = envs_crop,
+  test.prop = 0.15,
+  bg.source = "points",
+  verbose = T
+)
+```
+
+```{r}
+zona_interes<- raster("C:\\Users\\bioco\\OneDrive\\Documents\\panelera.tif")
+plot(predict(sc.mx$model, env, zona_interes))
+```
+
+
+# Aptitud espacio ambiental
+```{r}
+visualize.enm(model = sc.mx,
+              env = env,
+              layers = c('A1', 'A4'),
+              plot.test.data = F,
+              plot.points = TRUE)
+```
+
+```{r}
+marginal.plots(
+  model = sc.mx,
+  env = env,
+  layer = 'A1'
+)
+```
